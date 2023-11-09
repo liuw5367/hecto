@@ -32,7 +32,7 @@ impl Editor {
                             break;
                         }
                     }
-                    _ => println!("{:?}\r", key),
+                    _ => println!("{key:?}\r"),
                 },
             }
         }
