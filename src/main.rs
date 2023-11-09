@@ -1,7 +1,9 @@
 #![warn(clippy::all, clippy::pedantic)]
 
 mod editor;
+mod terminal;
 use editor::Editor;
+pub use terminal::Terminal;
 
 // fn to_ctrl_byte(c: char) -> u8 {
 //     let byte = c as u8;

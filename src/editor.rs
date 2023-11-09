@@ -1,32 +1,37 @@
-use std::io::{self, stdin, stdout, Write};
+use std::io::{self, stdout};
 
-use termion::{event::Key, input::TermRead, raw::IntoRawMode};
+use termion::{event::Key, raw::IntoRawMode};
+
+use crate::Terminal;
 
 pub struct Editor {
     should_quit: bool,
+    terminal: Terminal,
 }
 
 fn die(e: io::Error) {
-    panic!("{}", e);
-}
-
-pub fn read_key() -> Result<Key, io::Error> {
-    loop {
-        if let Some(key) = stdin().lock().keys().next() {
-            return key;
-        }
-    }
+    Terminal::clear_screen();
+    panic!("{e}");
 }
 
 impl Editor {
     pub fn default() -> Self {
-        Self { should_quit: false }
+        Self {
+            should_quit: false,
+            terminal: Terminal::default().expect("Failed to initialize terminal."),
+        }
+    }
+
+    fn draw_rows(&self) {
+        for _ in 0..self.terminal.size().height {
+            println!("~\r");
+        }
     }
 
     pub fn process_keypress(&mut self) -> Result<(), io::Error> {
-        let pressed_key = read_key()?;
+        let pressed_key = Terminal::read_key()?;
         match pressed_key {
-            Key::Char('q') => self.should_quit = true,
+            Key::Char('Q') => self.should_quit = true,
             Key::Char(c) => {
                 println!("{}", c);
             }
@@ -37,8 +42,15 @@ impl Editor {
     }
 
     fn refresh_screen(&self) -> Result<(), io::Error> {
-        print!("\x1b[2J");
-        stdout().flush()
+        Terminal::clear_screen();
+        Terminal::cursor_position(0, 0);
+        if self.should_quit {
+            println!("Goodbye.\r");
+        } else {
+            self.draw_rows();
+            Terminal::cursor_position(0, 0);
+        }
+        Terminal::flush()
     }
 
     pub fn run(&mut self) {
