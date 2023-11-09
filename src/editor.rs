@@ -25,7 +25,11 @@ fn die(e: io::Error) {
 }
 
 impl Editor {
-    pub fn default(document: Document) -> Self {
+    pub fn default() -> Self {
+        Editor::open(Document::default())
+    }
+
+    pub fn open(document: Document) -> Self {
         Self {
             should_quit: false,
             terminal: Terminal::default().expect("Failed to initialize terminal."),

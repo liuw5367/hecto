@@ -8,8 +8,8 @@ pub struct Document {
 }
 
 impl Document {
-    pub fn open(filename: &str) -> Result<Self, io::Error> {
-        let contents = fs::read_to_string(filename)?;
+    pub fn open(file_path: &str) -> Result<Self, io::Error> {
+        let contents = fs::read_to_string(file_path)?;
         let mut rows = Vec::new();
 
         for value in contents.lines() {
