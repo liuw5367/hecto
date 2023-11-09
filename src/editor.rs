@@ -4,9 +4,17 @@ use termion::{event::Key, raw::IntoRawMode};
 
 use crate::Terminal;
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+struct Position {
+    x: usize,
+    y: usize,
+}
+
 pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
+    cursor_position: Position,
 }
 
 fn die(e: io::Error) {
@@ -19,12 +27,34 @@ impl Editor {
         Self {
             should_quit: false,
             terminal: Terminal::default().expect("Failed to initialize terminal."),
+            cursor_position: Position { x: 0, y: 0 },
         }
     }
 
+    fn draw_welcome_message(&self) {
+        let mut welcome = format!("Editor -- version {}", VERSION);
+        let width = self.terminal.size().width as usize;
+        let len = welcome.len();
+        let padding = width.saturating_sub(len) / 2;
+        let spaces = " ".repeat(padding.saturating_add(1));
+
+        welcome = format!("~{}{}", spaces, welcome);
+        welcome.truncate(width);
+
+        println!("{}\r", welcome);
+    }
+
     fn draw_rows(&self) {
-        for _ in 0..self.terminal.size().height {
-            println!("~\r");
+        let height = self.terminal.size().height;
+
+        for row in 0..height - 1 {
+            Terminal::clear_current_line();
+
+            if row == height / 3 {
+                self.draw_welcome_message();
+            } else {
+                println!("~\r");
+            }
         }
     }
 
@@ -42,14 +72,17 @@ impl Editor {
     }
 
     fn refresh_screen(&self) -> Result<(), io::Error> {
+        Terminal::cursor_hide();
         Terminal::clear_screen();
         Terminal::cursor_position(0, 0);
         if self.should_quit {
+            Terminal::clear_screen();
             println!("Goodbye.\r");
         } else {
             self.draw_rows();
             Terminal::cursor_position(0, 0);
         }
+        Terminal::cursor_show();
         Terminal::flush()
     }
 
