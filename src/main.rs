@@ -9,8 +9,7 @@ use editor::Editor;
 // }
 
 fn main() {
-    println!("Hello, world!");
+    println!("started !");
 
-    let editor = Editor::default();
-    editor.run();
+    Editor::default().run();
 }
