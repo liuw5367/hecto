@@ -56,11 +56,5 @@ struct Inspect {
 fn main() {
     let args = Cli::parse();
 
-    let document = if let Some(path) = args.value {
-        Document::open(&path).unwrap_or_default()
-    } else {
-        Document::default()
-    };
-
-    Editor::open(document).run();
+    Editor::open(&args.value.unwrap_or_default()).run();
 }

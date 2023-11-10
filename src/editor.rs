@@ -1,9 +1,14 @@
-use std::io::{self, stdout};
+use std::{
+    io::{self, stdout},
+    time::{Duration, Instant},
+};
 
-use termion::{event::Key, raw::IntoRawMode};
+use termion::{color, event::Key, raw::IntoRawMode};
 
 use crate::{Document, Row, Terminal};
 
+const STATUS_FG_COLOR: color::Rgb = color::Rgb(63, 63, 63);
+const STATUS_BG_COLOR: color::Rgb = color::Rgb(239, 239, 239);
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Default)]
@@ -12,12 +17,34 @@ pub struct Position {
     pub y: usize,
 }
 
+struct StatusMessage {
+    text: String,
+    time: Instant,
+}
+
+impl StatusMessage {
+    fn default() -> Self {
+        Self {
+            text: String::from("HELP: Ctrl-Q = quit"),
+            time: Instant::now(),
+        }
+    }
+
+    fn from(message: String) -> Self {
+        Self {
+            text: message,
+            time: Instant::now(),
+        }
+    }
+}
+
 pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
     cursor_position: Position,
     offset: Position,
     document: Document,
+    status_message: StatusMessage,
 }
 
 fn die(e: io::Error) {
@@ -26,17 +53,34 @@ fn die(e: io::Error) {
 }
 
 impl Editor {
-    pub fn default() -> Self {
-        Editor::open(Document::default())
-    }
+    // pub fn default() -> Self {
+    //     Editor::open(Ok(Document::default()), )
+    // }
 
-    pub fn open(document: Document) -> Self {
+    pub fn open(file_path: &str) -> Self {
+        let status_message: StatusMessage;
+        let document = if file_path.trim().len() > 1 {
+            let doc = Document::open(file_path);
+            if doc.is_ok() {
+                status_message = StatusMessage::default();
+                doc.unwrap()
+            } else {
+                status_message =
+                    StatusMessage::from(format!("ERR: Could not open file {}", file_path));
+                Document::default()
+            }
+        } else {
+            status_message = StatusMessage::default();
+            Document::default()
+        };
+
         Self {
             should_quit: false,
             terminal: Terminal::default().expect("Failed to initialize terminal."),
             cursor_position: Position::default(),
             offset: Position::default(),
             document,
+            status_message,
         }
     }
 
@@ -193,6 +237,8 @@ impl Editor {
             println!("Goodbye.\r");
         } else {
             self.draw_rows();
+            self.draw_status_bar();
+            self.draw_message_bar();
             Terminal::cursor_position(&Position {
                 x: self.cursor_position.x.saturating_sub(self.offset.x),
                 y: self.cursor_position.y.saturating_sub(self.offset.y),
@@ -200,6 +246,46 @@ impl Editor {
         }
         Terminal::cursor_show();
         Terminal::flush()
+    }
+
+    fn draw_message_bar(&self) {
+        Terminal::clear_current_line();
+        let message = &self.status_message;
+        if Instant::now() - message.time < Duration::new(5, 0) {
+            let mut text = message.text.clone();
+            text.truncate(self.terminal.size().width as usize);
+            print!("{}", text);
+        }
+    }
+
+    fn draw_status_bar(&self) {
+        let mut file_name = "[No Name]".to_string();
+        if let Some(name) = &self.document.file_name {
+            file_name = name.clone();
+            file_name.truncate(20);
+        }
+
+        let width: usize = self.terminal.size().width as usize;
+        let mut status = format!("{} - {} lines", file_name, self.document.len());
+
+        let line_indicator = format!(
+            "{}/{}",
+            self.cursor_position.y.saturating_add(1),
+            self.document.len()
+        );
+
+        let len = status.len() + line_indicator.len();
+        if width > len {
+            status.push_str(&" ".repeat(width - len));
+        }
+
+        status = format!("{status}{line_indicator}");
+
+        Terminal::set_bg_color(STATUS_BG_COLOR);
+        Terminal::set_fg_color(STATUS_FG_COLOR);
+        println!("{}\r", status);
+        Terminal::reset_fg_color();
+        Terminal::reset_bg_color();
     }
 
     pub fn run(&mut self) {
