@@ -1,9 +1,9 @@
 use std::{
-    io::{self, stdout},
+    io::{self},
     time::{Duration, Instant},
 };
 
-use termion::{color, event::Key, raw::IntoRawMode};
+use termion::{color, event::Key};
 
 use crate::{Document, Row, Terminal};
 
@@ -53,10 +53,6 @@ fn die(e: io::Error) {
 }
 
 impl Editor {
-    // pub fn default() -> Self {
-    //     Editor::open(Ok(Document::default()), )
-    // }
-
     pub fn open(file_path: &str) -> Self {
         let status_message: StatusMessage;
         let document = if file_path.trim().len() > 1 {
@@ -85,16 +81,14 @@ impl Editor {
     }
 
     fn draw_welcome_message(&self) {
-        let mut welcome = format!("Editor -- version {}", VERSION);
+        let mut welcome_message = format!("Editor -- version {}", VERSION);
         let width = self.terminal.size().width as usize;
-        let len = welcome.len();
+        let len = welcome_message.len();
         let padding = width.saturating_sub(len) / 2;
-        let spaces = " ".repeat(padding.saturating_add(1));
-
-        welcome = format!("~{}{}", spaces, welcome);
-        welcome.truncate(width);
-
-        println!("{}\r", welcome);
+        let spaces = " ".repeat(padding.saturating_sub(1));
+        welcome_message = format!("~{}{}", spaces, welcome_message);
+        welcome_message.truncate(width);
+        println!("{}\r", welcome_message);
     }
 
     pub fn draw_row(&self, row: &Row) {
@@ -137,7 +131,7 @@ impl Editor {
             Key::Up => y = y.saturating_sub(1),
             Key::Down => {
                 if y < height {
-                    y = y.saturating_add(1)
+                    y = y.saturating_add(1);
                 }
             }
             Key::Left => {
@@ -145,10 +139,10 @@ impl Editor {
                     x -= 1;
                 } else if y > 0 {
                     y -= 1;
-                    x = if let Some(row) = self.document.row(y) {
-                        row.len()
+                    if let Some(row) = self.document.row(y) {
+                        x = row.len();
                     } else {
-                        0
+                        x = 0;
                     }
                 }
             }
@@ -199,17 +193,17 @@ impl Editor {
         let offset = &mut self.offset;
         if y < offset.y {
             offset.y = y;
-        } else if y > offset.y.saturating_add(height) {
+        } else if y >= offset.y.saturating_add(height) {
             offset.y = y.saturating_sub(height).saturating_add(1);
         }
         if x < offset.x {
             offset.x = x;
-        } else if x > offset.x.saturating_add(width) {
+        } else if x >= offset.x.saturating_add(width) {
             offset.x = x.saturating_sub(width).saturating_add(1);
         }
     }
 
-    pub fn process_keypress(&mut self) -> Result<(), io::Error> {
+    fn process_keypress(&mut self) -> Result<(), io::Error> {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Char('Q') => self.should_quit = true,
@@ -230,8 +224,8 @@ impl Editor {
 
     fn refresh_screen(&self) -> Result<(), io::Error> {
         Terminal::cursor_hide();
-        Terminal::clear_screen();
         Terminal::cursor_position(&Position::default());
+
         if self.should_quit {
             Terminal::clear_screen();
             println!("Goodbye.\r");
@@ -265,7 +259,7 @@ impl Editor {
             file_name.truncate(20);
         }
 
-        let width: usize = self.terminal.size().width as usize;
+        let width = self.terminal.size().width as usize;
         let mut status = format!("{} - {} lines", file_name, self.document.len());
 
         let line_indicator = format!(
@@ -279,7 +273,8 @@ impl Editor {
             status.push_str(&" ".repeat(width - len));
         }
 
-        status = format!("{status}{line_indicator}");
+        status = format!("{}{}", status, line_indicator);
+        status.truncate(width);
 
         Terminal::set_bg_color(STATUS_BG_COLOR);
         Terminal::set_fg_color(STATUS_FG_COLOR);
@@ -289,17 +284,15 @@ impl Editor {
     }
 
     pub fn run(&mut self) {
-        let _stdout = stdout().into_raw_mode().unwrap();
-
         loop {
-            if let Err(e) = self.refresh_screen() {
-                die(e);
+            if let Err(error) = self.refresh_screen() {
+                die(error);
             }
             if self.should_quit {
                 break;
             }
-            if let Err(e) = self.process_keypress() {
-                die(e);
+            if let Err(error) = self.process_keypress() {
+                die(error);
             }
         }
     }

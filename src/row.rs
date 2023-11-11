@@ -8,9 +8,9 @@ pub struct Row {
 }
 
 impl From<&str> for Row {
-    fn from(str: &str) -> Self {
+    fn from(slice: &str) -> Self {
         let mut row = Self {
-            string: str.to_string(),
+            string: String::from(slice),
             len: 0,
         };
         row.update_len();
@@ -20,8 +20,8 @@ impl From<&str> for Row {
 
 impl Row {
     pub fn render(&self, start: usize, end: usize) -> String {
-        let start = cmp::min(start, end);
         let end = cmp::min(end, self.string.len());
+        let start = cmp::min(start, end);
 
         let mut result = String::new();
         for grapheme in self.string[..]
@@ -30,9 +30,9 @@ impl Row {
             .take(end - start)
         {
             if grapheme == "\t" {
-                result.push_str(" ")
+                result.push_str(" ");
             } else {
-                result.push_str(grapheme)
+                result.push_str(grapheme);
             }
         }
 
@@ -48,6 +48,6 @@ impl Row {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.string.is_empty()
+        self.len == 0
     }
 }
