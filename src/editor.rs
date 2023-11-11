@@ -10,6 +10,7 @@ use crate::{Document, Row, Terminal};
 const STATUS_FG_COLOR: color::Rgb = color::Rgb(63, 63, 63);
 const STATUS_BG_COLOR: color::Rgb = color::Rgb(239, 239, 239);
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+const QUIT_TIMES: u8 = 3;
 
 #[derive(Default)]
 pub struct Position {
@@ -23,6 +24,13 @@ struct StatusMessage {
 }
 
 impl StatusMessage {
+    fn empty() -> Self {
+        Self {
+            text: String::new(),
+            time: Instant::now(),
+        }
+    }
+
     fn default() -> Self {
         Self {
             text: String::from("HELP: Ctrl-S = save | Ctrl-Q = quit"),
@@ -45,6 +53,7 @@ pub struct Editor {
     offset: Position,
     document: Document,
     status_message: StatusMessage,
+    quit_times: u8,
 }
 
 fn die(e: io::Error) {
@@ -77,6 +86,7 @@ impl Editor {
             offset: Position::default(),
             document,
             status_message,
+            quit_times: QUIT_TIMES,
         }
     }
 
@@ -108,8 +118,19 @@ impl Editor {
             file_name.truncate(20);
         }
 
+        let modified_indicator = if self.document.is_dirty() {
+            " (modified)"
+        } else {
+            ""
+        };
+
         let width = self.terminal.size().width as usize;
-        let mut status = format!("{} - {} lines", file_name, self.document.len());
+        let mut status = format!(
+            "{} - {} lines{}",
+            file_name,
+            self.document.len(),
+            modified_indicator
+        );
 
         let line_indicator = format!(
             "{}/{}",
@@ -270,7 +291,7 @@ impl Editor {
             }
         }
 
-        self.status_message = StatusMessage::from(String::new());
+        self.status_message = StatusMessage::empty();
         if result.is_empty() {
             return Ok(None);
         }
@@ -297,7 +318,17 @@ impl Editor {
     fn process_keypress(&mut self) -> Result<(), io::Error> {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
-            Key::Char('Q') => self.should_quit = true,
+            Key::Char('Q') => {
+                if self.quit_times > 0 && self.document.is_dirty() {
+                    self.status_message = StatusMessage::from(format!(
+                        "WARNING! File has unsaved changes. Press Ctrl-Q {} more times to quit.",
+                        self.quit_times
+                    ));
+                    self.quit_times -= 1;
+                    return Ok(());
+                }
+                self.should_quit = true;
+            }
             Key::Char('S') => self.save(),
             Key::Char(c) => {
                 self.document.insert(&self.cursor_position, c);
@@ -322,6 +353,12 @@ impl Editor {
         }
 
         self.scroll();
+
+        if self.quit_times < QUIT_TIMES {
+            self.quit_times = QUIT_TIMES;
+            self.status_message = StatusMessage::empty();
+        }
+
         Ok(())
     }
 
