@@ -25,7 +25,7 @@ struct StatusMessage {
 impl StatusMessage {
     fn default() -> Self {
         Self {
-            text: String::from("HELP: Ctrl-Q = quit"),
+            text: String::from("HELP: Ctrl-S = save | Ctrl-Q = quit"),
             time: Instant::now(),
         }
     }
@@ -248,6 +248,13 @@ impl Editor {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Char('Q') => self.should_quit = true,
+            Key::Char('S') => {
+                if self.document.save().is_ok() {
+                    self.status_message = StatusMessage::from("File saved successful".to_string());
+                } else {
+                    self.status_message = StatusMessage::from("Error writing file !".to_string());
+                }
+            }
             Key::Char(c) => {
                 self.document.insert(&self.cursor_position, c);
                 self.move_cursor(Key::Right);
