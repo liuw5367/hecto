@@ -9,8 +9,8 @@ pub struct Document {
 }
 
 impl Document {
-    pub fn open(file_path: &str) -> Result<Self, io::Error> {
-        let contents = fs::read_to_string(file_path)?;
+    pub fn open(path: &str) -> Result<Self, io::Error> {
+        let contents = fs::read_to_string(path)?;
         let mut rows = Vec::new();
 
         for value in contents.lines() {
@@ -19,7 +19,7 @@ impl Document {
 
         Ok(Self {
             rows,
-            file_name: Some(file_path.to_string()),
+            file_name: Some(path.to_string()),
         })
     }
 

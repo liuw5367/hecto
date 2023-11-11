@@ -91,7 +91,48 @@ impl Editor {
         println!("{}\r", welcome_message);
     }
 
-    pub fn draw_row(&self, row: &Row) {
+    fn draw_message_bar(&self) {
+        Terminal::clear_current_line();
+        let message = &self.status_message;
+        if Instant::now() - message.time < Duration::new(5, 0) {
+            let mut text = message.text.clone();
+            text.truncate(self.terminal.size().width as usize);
+            print!("{}", text);
+        }
+    }
+
+    fn draw_status_bar(&self) {
+        let mut file_name = "[No Name]".to_string();
+        if let Some(name) = &self.document.file_name {
+            file_name = name.clone();
+            file_name.truncate(20);
+        }
+
+        let width = self.terminal.size().width as usize;
+        let mut status = format!("{} - {} lines", file_name, self.document.len());
+
+        let line_indicator = format!(
+            "{}/{}",
+            self.cursor_position.y.saturating_add(1),
+            self.document.len()
+        );
+
+        let len = status.len() + line_indicator.len();
+        if width > len {
+            status.push_str(&" ".repeat(width - len));
+        }
+
+        status = format!("{}{}", status, line_indicator);
+        status.truncate(width);
+
+        Terminal::set_bg_color(STATUS_BG_COLOR);
+        Terminal::set_fg_color(STATUS_FG_COLOR);
+        println!("{}\r", status);
+        Terminal::reset_fg_color();
+        Terminal::reset_bg_color();
+    }
+
+    fn draw_row(&self, row: &Row) {
         let width = self.terminal.size().width as usize;
         let start = self.offset.x;
         let end = start + width;
@@ -240,47 +281,6 @@ impl Editor {
         }
         Terminal::cursor_show();
         Terminal::flush()
-    }
-
-    fn draw_message_bar(&self) {
-        Terminal::clear_current_line();
-        let message = &self.status_message;
-        if Instant::now() - message.time < Duration::new(5, 0) {
-            let mut text = message.text.clone();
-            text.truncate(self.terminal.size().width as usize);
-            print!("{}", text);
-        }
-    }
-
-    fn draw_status_bar(&self) {
-        let mut file_name = "[No Name]".to_string();
-        if let Some(name) = &self.document.file_name {
-            file_name = name.clone();
-            file_name.truncate(20);
-        }
-
-        let width = self.terminal.size().width as usize;
-        let mut status = format!("{} - {} lines", file_name, self.document.len());
-
-        let line_indicator = format!(
-            "{}/{}",
-            self.cursor_position.y.saturating_add(1),
-            self.document.len()
-        );
-
-        let len = status.len() + line_indicator.len();
-        if width > len {
-            status.push_str(&" ".repeat(width - len));
-        }
-
-        status = format!("{}{}", status, line_indicator);
-        status.truncate(width);
-
-        Terminal::set_bg_color(STATUS_BG_COLOR);
-        Terminal::set_fg_color(STATUS_FG_COLOR);
-        println!("{}\r", status);
-        Terminal::reset_fg_color();
-        Terminal::reset_bg_color();
     }
 
     pub fn run(&mut self) {
